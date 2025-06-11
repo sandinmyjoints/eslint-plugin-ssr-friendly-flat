@@ -3,19 +3,19 @@ const pkg = require("../package.json");
 
 const pluginName = pkg.name.replace("eslint-plugin-", "");
 
-const isDOMGlobalName = (name) => {
+const isDOMGlobalName = name => {
   return name in browserGlobals && !(name in nodeGlobals);
 };
 
-const isJSXElementOrFragment = (argumentType) => {
+const isJSXElementOrFragment = argumentType => {
   return argumentType === "JSXElement" || argumentType === "JSXFragment";
 };
 
-const isReturnValueNull = (argument) => {
+const isReturnValueNull = argument => {
   return argument.type === "Literal" && argument.value === null;
 };
 
-const isReturnValueJSXOrNull = (scope) => {
+const isReturnValueJSXOrNull = scope => {
   if (
     scope.block &&
     scope.block.body &&
@@ -24,7 +24,7 @@ const isReturnValueJSXOrNull = (scope) => {
   ) {
     return (
       scope.type === "function" &&
-      scope.block.body.body.find((e) => {
+      scope.block.body.body.find(e => {
         if (!(e && e.type === "ReturnStatement" && e.argument)) {
           return false;
         }
@@ -50,7 +50,7 @@ const isReturnValueJSXOrNull = (scope) => {
   return false;
 };
 
-const isFirstLetterCapitalized = (name) => {
+const isFirstLetterCapitalized = name => {
   return name && name[0] === name[0].toUpperCase();
 };
 
@@ -63,12 +63,14 @@ function isReactFunction(node, functionName) {
   );
 }
 
-const isReactFunctionComponent = (scope) => {
+const isReactFunctionComponent = scope => {
   // eslint-disable-next-line default-case
   switch (scope.block.type) {
     case "FunctionDeclaration":
       return (
-        scope && scope.block && scope.block.id &&
+        scope &&
+        scope.block &&
+        scope.block.id &&
         isFirstLetterCapitalized(scope.block.id.name) &&
         isReturnValueJSXOrNull(scope)
       );
@@ -90,7 +92,7 @@ const isReactFunctionComponent = (scope) => {
   return false;
 };
 
-const isConstructorInClass = (scope) => {
+const isConstructorInClass = scope => {
   if (scope.block && scope.block.parent) {
     const { type, kind } = scope.block.parent;
     return type === "MethodDefinition" && kind === "constructor";
@@ -98,7 +100,7 @@ const isConstructorInClass = (scope) => {
   return false;
 };
 
-const isRenderMethodInReactCC = (scope) => {
+const isRenderMethodInReactCC = scope => {
   if (scope.block && scope.block.parent) {
     const { type, kind, key } = scope.block.parent;
     return (
@@ -111,7 +113,7 @@ const isRenderMethodInReactCC = (scope) => {
   return false;
 };
 
-const reportReference = (context, rule) => (reference) => {
+const reportReference = (context, rule) => reference => {
   const node = reference.identifier;
   const { name, parent } = node;
 
@@ -119,7 +121,12 @@ const reportReference = (context, rule) => (reference) => {
   if (
     (parent.type === "UnaryExpression" && parent.operator === "typeof") ||
     parent.type === "TSTypeReference" ||
-    parent.type === "TSInterfaceHeritage"
+    parent.type === "TSInterfaceHeritage" ||
+    (parent.type === "TSPropertySignature" &&
+      parent.key === node &&
+      parent.parent &&
+      (parent.parent.type === "TSInterfaceBody" ||
+        parent.parent.type === "TSTypeLiteral"))
   ) {
     return;
   }
@@ -134,8 +141,8 @@ const reportReference = (context, rule) => (reference) => {
           node,
           messageId: "defaultMessage",
           data: {
-            name,
-          },
+            name
+          }
         });
       }
       return;
@@ -146,8 +153,8 @@ const reportReference = (context, rule) => (reference) => {
           node,
           messageId: "defaultMessage",
           data: {
-            name,
-          },
+            name
+          }
         });
       }
       return;
@@ -158,8 +165,8 @@ const reportReference = (context, rule) => (reference) => {
           node,
           messageId: "defaultMessage",
           data: {
-            name,
-          },
+            name
+          }
         });
       }
       return;
@@ -170,8 +177,8 @@ const reportReference = (context, rule) => (reference) => {
           node,
           messageId: "defaultMessage",
           data: {
-            name,
-          },
+            name
+          }
         });
       }
       return;
@@ -183,7 +190,7 @@ const reportReference = (context, rule) => (reference) => {
   }
 };
 
-const createFn = (rule) => (context) => {
+const createFn = rule => context => {
   return {
     Program() {
       const filename = context.getFilename();
@@ -195,19 +202,19 @@ const createFn = (rule) => (context) => {
       const scope = sourceCode.getScope(sourceCode.ast);
 
       // Report variables declared elsewhere (ex: variables defined as "global" by eslint)
-      scope.variables.forEach((variable) => {
+      scope.variables.forEach(variable => {
         if (!variable.defs.length && isDOMGlobalName(variable.name)) {
           variable.references.forEach(reportReference(context, rule));
         }
       });
 
       // Report variables not declared at all
-      scope.through.forEach((reference) => {
+      scope.through.forEach(reference => {
         if (isDOMGlobalName(reference.identifier.name)) {
           reportReference(context, rule)(reference);
         }
       });
-    },
+    }
   };
 };
 
@@ -221,14 +228,14 @@ const createRule = (name, description, defaultMessage) => {
         docs: {
           description,
           recommended: true,
-          url: ruleDocUrl,
+          url: ruleDocUrl
         },
         messages: {
-          defaultMessage,
-        },
+          defaultMessage
+        }
       },
-      create: createFn(name),
-    },
+      create: createFn(name)
+    }
   };
 };
 
@@ -252,35 +259,35 @@ const rules = {
     "no-dom-globals-in-react-fc",
     "disallow use of DOM globals in the render-cycle of a React FC",
     "Use of DOM global '{{name}}' is forbidden in the render-cycle of a React FC, consider moving this inside useEffect()"
-  ),
+  )
 };
 
 const plugin = {
   meta: {
     name: pkg.name,
-    version: pkg.version,
+    version: pkg.version
   },
-  rules: rules,
+  rules: rules
 };
 
 plugin.configs = {
   recommended: {
     plugins: {
-      [pluginName]: plugin,
+      [pluginName]: plugin
     },
     languageOptions: {
       parserOptions: {
         ecmaFeatures: {
-          jsx: true,
-        },
-      },
+          jsx: true
+        }
+      }
     },
     rules: Object.keys(rules).reduce((carry, key) => {
       // eslint-disable-next-line no-param-reassign
       carry[`${pluginName}/${key}`] = "error";
       return carry;
-    }, {}),
-  },
+    }, {})
+  }
 };
 
 module.exports = plugin;
